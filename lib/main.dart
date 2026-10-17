@@ -31,8 +31,17 @@ class MannPlusApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AuthState()..restore(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthState()..restore()),
+        // NotificationState harus berada DI ATAS MaterialApp, bukan di dalam
+        // halaman, supaya layar yang dibuka lewat Navigator.push (Notifikasi,
+        // Kasbon, detail slip) tetap bisa membacanya.
+        ChangeNotifierProxyProvider<AuthState, NotificationState>(
+          create: (context) => NotificationState(context.read<AuthState>().services),
+          update: (context, auth, previous) => previous ?? NotificationState(auth.services),
+        ),
+      ],
       child: MaterialApp(
         title: 'Mann Plus Payroll',
         debugShowCheckedModeBanner: false,
@@ -43,8 +52,15 @@ class MannPlusApp extends StatelessWidget {
   }
 }
 
-class _AuthGate extends StatelessWidget {
+class _AuthGate extends StatefulWidget {
   const _AuthGate();
+
+  @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> {
+  String? _lastUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -63,12 +79,19 @@ class _AuthGate extends StatelessWidget {
       );
     }
 
-    if (!auth.isLoggedIn) return const LoginScreen();
+    if (!auth.isLoggedIn) {
+      _lastUserId = null;
+      return const LoginScreen();
+    }
 
-    return ChangeNotifierProvider(
-      key: ValueKey(auth.user?.id),
-      create: (_) => NotificationState(auth.services)..refresh(),
-      child: const ShellScreen(),
-    );
+    // Muat notifikasi sekali setiap kali pengguna (re)login.
+    if (_lastUserId != auth.user!.id) {
+      _lastUserId = auth.user!.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<NotificationState>().refresh();
+      });
+    }
+
+    return const ShellScreen();
   }
 }

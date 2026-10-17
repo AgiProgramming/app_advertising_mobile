@@ -13,6 +13,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Dibutuhkan flutter_local_notifications (java.time di API < 26).
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -24,7 +26,7 @@ android {
     defaultConfig {
         // Disamakan dengan package_name di google-services.json (Firebase).
         applicationId = "com.example.mannplus"
-        minSdk = 23 // Firebase Cloud Messaging membutuhkan API 23+
+        minSdk = flutter.minSdkVersion // Firebase Cloud Messaging membutuhkan API 23+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -41,4 +43,8 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

@@ -364,9 +364,9 @@ class _AdminHome extends StatelessWidget {
           children: [
             Expanded(
               child: StatTile(
-                label: 'SPK aktif',
-                value: '${spk['pending'] ?? 0}',
-                hint: 'total ${Formats.rupiah(spk['total_spk_value'])}',
+                label: 'Total SPK',
+                value: '${spk['total_spk'] ?? 0}',
+                hint: '${spk['pending'] ?? 0} belum dikerjakan',
                 valueSize: 18,
               ),
             ),
@@ -396,7 +396,7 @@ class _AdminHome extends StatelessWidget {
             Expanded(
               child: StatTile(
                 label: 'Slip belum dibayar',
-                value: '${payroll['total_unpaid_salary'] ?? 0}',
+                value: Formats.amount(payroll['total_unpaid_salary']),
                 hint: 'dari ${payroll['total_slips'] ?? 0} slip',
                 valueSize: 15,
               ),
