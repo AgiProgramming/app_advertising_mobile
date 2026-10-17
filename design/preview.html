@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mann Plus Payroll — Design Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#4F46E5; --primary-pressed:#4338CA; --primary-soft:#EEF2FF;
+    --ink:#0F172A; --ink-muted:#475569; --muted:#64748B;
+    --border:#E2E8F0; --border-strong:#CBD5E1;
+    --surface:#FFFFFF; --surface-sunken:#F8FAFC; --canvas:#F1F5F9; --shell:#0F172A;
+    --success:#059669; --success-soft:#D1FAE5;
+    --warning:#B45309; --warning-soft:#FEF3C7;
+    --danger:#BE123C; --danger-soft:#FFE4E6;
+    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:20px; --pill:999px;
+    --font:'Instrument Sans',ui-sans-serif,system-ui,sans-serif;
+    --mono:'Roboto Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:var(--font);background:#0B1120;color:#E2E8F0;
+    padding:48px 32px 96px;-webkit-font-smoothing:antialiased;
+  }
+  .board-head{max-width:1400px;margin:0 auto 40px}
+  .board-head .kicker{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#818CF8}
+  .board-head h1{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:8px 0 10px;color:#fff}
+  .board-head p{font-size:14px;line-height:1.6;color:#94A3B8;max-width:70ch}
+  .board-head code{font-family:var(--mono);font-size:12px;color:#C7D2FE;background:#1E293B;padding:2px 6px;border-radius:6px}
+
+  .tokens{max-width:1400px;margin:0 auto 56px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .tok{background:#111C33;border:1px solid #1E293B;border-radius:16px;padding:16px}
+  .tok h2{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94A3B8;margin-bottom:12px}
+  .swatches{display:flex;flex-wrap:wrap;gap:10px}
+  .sw{width:64px}
+  .sw i{display:block;height:40px;border-radius:10px;border:1px solid rgba(255,255,255,.12)}
+  .sw b{display:block;font-size:10px;font-weight:600;color:#CBD5E1;margin-top:6px}
+  .sw span{display:block;font-family:var(--mono);font-size:9px;color:#64748B}
+  .spec{display:flex;align-items:baseline;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #1E293B;color:#E2E8F0}
+  .spec:last-child{border:0}
+  .spec em{font-style:normal;font-size:11px;color:#64748B;font-family:var(--mono)}
+
+  .frames{max-width:1400px;margin:0 auto;display:flex;flex-wrap:wrap;gap:40px 32px;align-items:flex-start}
+  figure{width:390px}
+  figcaption{font-size:12px;color:#94A3B8;margin-bottom:10px;display:flex;gap:8px;align-items:baseline}
+  figcaption b{font-size:12px;font-weight:700;color:#E2E8F0;letter-spacing:.02em}
+  figcaption span{font-size:11px;color:#64748B}
+
+  .phone{
+    width:390px;height:844px;background:var(--canvas);border-radius:44px;position:relative;
+    border:10px solid #060B16;box-shadow:0 30px 60px -20px rgba(0,0,0,.8),0 0 0 1px #1E293B;
+    overflow:hidden;display:flex;flex-direction:column;
+  }
+  .sbar{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 24px;font-size:12px;font-weight:700;color:var(--ink);background:transparent;z-index:5}
+  .sbar.on-dark{color:#fff}
+  .sbar .dots{display:flex;gap:3px;align-items:center}
+  .sbar .dots i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.9}
+
+  .appbar{flex:0 0 56px;height:56px;background:var(--surface);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:12px;padding:0 16px}
+  .appbar .ttl{font-size:16px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+  .appbar .spacer{flex:1}
+  .icon-btn{width:40px;height:40px;border-radius:var(--r-md);display:grid;place-items:center;color:var(--ink-muted);background:transparent;border:0}
+  .icon-btn.ghost{background:var(--surface-sunken);border:1px solid var(--border)}
+  .monogram{width:32px;height:32px;border-radius:10px;background:var(--ink);color:#fff;display:grid;place-items:center;
+    font-size:12px;font-weight:800;letter-spacing:.02em}
+
+  .scroll{flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px}
+  .scroll.tight{gap:8px}
+  .label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .muted{color:var(--muted)}
+  .ink{color:var(--ink)}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px}
+  .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .card-h .t{font-size:15px;font-weight:600;color:var(--ink)}
+  .link{font-size:12px;font-weight:600;color:var(--primary);text-decoration:none}
+
+  .money{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";letter-spacing:-.02em}
+  .money-xl{font-size:32px;font-weight:800;color:var(--ink)}
+  .money-lg{font-size:26px;font-weight:800;color:var(--ink)}
+  .money-md{font-size:16px;font-weight:700;color:var(--ink)}
+  .money-sm{font-size:14px;font-weight:700;color:var(--ink)}
+
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:var(--pill);
+    font-size:11px;font-weight:700;letter-spacing:.01em}
+  .badge.paid{background:var(--success-soft);color:var(--success)}
+  .badge.unpaid{background:var(--warning-soft);color:var(--warning)}
+  .badge.neutral{background:var(--surface-sunken);color:var(--muted);border:1px solid var(--border)}
+  .badge .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .tiles.two{grid-template-columns:repeat(2,1fr);gap:10px}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px}
+  .tile .label{font-size:9.5px;letter-spacing:.05em}
+  .tile .v{font-size:14px;font-weight:700;color:var(--ink);margin-top:4px;font-variant-numeric:tabular-nums}
+  .tile .v.lg{font-size:17px}
+
+  .rows{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 16px 12px 14px;min-height:64px;border-bottom:1px solid var(--border)}
+  .row:last-child{border-bottom:0}
+  .row .body{flex:1;min-width:0}
+  .row .t{font-size:14px;font-weight:600;color:var(--ink);line-height:1.3;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .row .s{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .right{text-align:right;flex:0 0 auto}
+  .row .right .b{margin-top:4px;display:flex;justify-content:flex-end}
+  .per{width:44px;flex:0 0 44px;text-align:center;border-right:1px solid var(--border);padding-right:10px;margin-right:2px}
+  .per b{display:block;font-size:15px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .per span{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+
+  .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;padding:8px 13px;border-radius:var(--pill);border:1px solid var(--border);background:var(--surface);
+    font-size:12px;font-weight:600;color:var(--ink-muted);white-space:nowrap}
+  .chip.on{background:var(--primary-soft);border-color:#C7D2FE;color:var(--primary)}
+
+  .nav{flex:0 0 64px;height:64px;background:var(--surface);border-top:1px solid var(--border);
+    display:grid;grid-template-columns:repeat(4,1fr);align-items:center;padding-bottom:0}
+  .nav .item{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10px;font-weight:600}
+  .nav .item .ic{width:34px;height:24px;border-radius:var(--pill);display:grid;place-items:center}
+  .nav .item.on{color:var(--primary)}
+  .nav .item.on .ic{background:var(--primary-soft)}
+  .nav .item.on .ic svg{stroke:var(--primary)}
+
+  svg{display:block}
+  .i{stroke:currentColor;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---------- login ---------- */
+  .login{background:var(--shell);flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
+  .login .top{padding:8px 24px 0;flex:1;display:flex;flex-direction:column}
+  .login .brand{display:flex;align-items:center;gap:10px}
+  .login .brand .mk{width:38px;height:38px;border-radius:11px;border:1px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.06);display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;letter-spacing:.04em}
+  .login .brand .nm{font-size:13px;font-weight:600;color:#CBD5E1;letter-spacing:.02em}
+  .login .hero{margin-top:auto;padding-bottom:28px}
+  .login .hero .k{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#818CF8}
+  .login .hero h2{font-size:34px;line-height:1.1;font-weight:800;letter-spacing:-.03em;color:#fff;margin:10px 0 8px}
+  .login .hero p{font-size:13px;color:#94A3B8;line-height:1.55;max-width:30ch}
+  .sheet{background:var(--surface);border-radius:24px 24px 0 0;padding:22px 20px 26px;flex:0 0 auto}
+  .field{margin-bottom:14px}
+  .field .lb{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px}
+  .inp{height:48px;border:1px solid var(--border);border-radius:var(--r-md);display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--surface)}
+  .inp.focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .inp .ph{font-size:14px;color:var(--ink)}
+  .inp .hint{font-size:14px;color:var(--border-strong)}
+  .btn{height:48px;border-radius:var(--r-md);background:var(--primary);color:#fff;border:0;width:100%;
+    font-family:var(--font);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px}
+  .btn.secondary{background:var(--surface);color:var(--ink);border:1px solid var(--border);height:44px;font-weight:600}
+  .btn.ghost{background:transparent;color:var(--muted);font-weight:600;height:auto;font-size:12px;margin-top:14px}
+
+  /* ---------- slip ---------- */
+  .slip{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:18px;font-family:var(--mono);font-size:11.5px;color:var(--ink);line-height:1.65}
+  .slip .head{text-align:center;padding-bottom:10px;border-bottom:1px dashed var(--border-strong)}
+  .slip .head .nm{font-family:var(--font);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  .slip .head .ad{font-size:9.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+  .slip .meta{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;padding:10px 0;border-bottom:1px dashed var(--border-strong)}
+  .slip .meta dt{color:var(--muted);font-size:10px}
+  .slip .meta dd{text-align:right;font-weight:500}
+  .slip .kv{display:flex;justify-content:space-between;gap:10px;padding:2px 0}
+  .slip .kv span:first-child{color:var(--ink-muted)}
+  .slip .kv .num{font-variant-numeric:tabular-nums}
+  .slip .sep{border-top:1px dashed var(--border-strong);margin:8px 0}
+  .slip .sep.double{border-top:3px double var(--border-strong);margin:9px 0 7px}
+  .slip .total{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--font)}
+  .slip .total .k{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-muted)}
+  .slip .total .v{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .slip .foot{display:flex;align-items:flex-end;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px dashed var(--border-strong)}
+  .slip .foot .note{font-size:9px;color:var(--muted);line-height:1.5;max-width:16ch}
+  .qr{width:64px;height:64px;border:1px solid var(--border);border-radius:6px;padding:4px;background:#fff}
+
+  .bottombar{flex:0 0 auto;background:var(--surface);border-top:1px solid var(--border);padding:10px 16px 14px;display:flex;gap:10px}
+  .bottombar .btn{height:46px}
+
+  /* ---------- notifications ---------- */
+  .feed{background:var(--surface);flex:1;overflow:hidden}
+  .feed .grp{padding:12px 16px 6px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--surface)}
+  .nrow{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);position:relative}
+  .nrow .ico{width:32px;height:32px;flex:0 0 32px;border-radius:10px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center}
+  .nrow.read .ico{background:var(--surface-sunken);color:var(--muted)}
+  .nrow .c{flex:1;min-width:0}
+  .nrow .t{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.35}
+  .nrow.read .t{font-weight:500;color:var(--ink-muted)}
+  .nrow .s{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .nrow .tm{font-size:10.5px;color:var(--muted);flex:0 0 auto;padding-top:2px}
+  .nrow .unread{position:absolute;left:6px;top:22px;width:5px;height:5px;border-radius:50%;background:var(--primary)}
+
+  /* ---------- admin ---------- */
+  .quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .quick .q{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 6px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;font-size:10.5px;font-weight:600;color:var(--ink-muted)}
+  .quick .q .ic{width:30px;height:30px;border-radius:9px;background:var(--surface-sunken);display:grid;place-items:center;color:var(--ink-muted)}
+  .act{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px dashed var(--border)}
+  .act:last-child{border-bottom:0}
+  .act .c{flex:1}
+  .act .t{font-size:13px;font-weight:600;color:var(--ink)}
+  .act .s{font-size:11px;color:var(--muted);margin-top:2px}
+  .mini{height:30px;padding:0 10px;border-radius:8px;background:var(--primary);color:#fff;border:0;font-size:11px;font-weight:700;font-family:var(--font)}
+  .mini.light{background:var(--surface);border:1px solid var(--border);color:var(--ink-muted)}
+</style>
+</head>
+<body>
+
+<header class="board-head">
+  <div class="kicker">Design preview · v1</div>
+  <h1>Mann Plus Payroll — aplikasi mobile</h1>
+  <p>Turunan design language dari aplikasi web Laravel yang sudah dipakai: indigo&nbsp;600 sebagai satu-satunya aksen, slate untuk netral, kartu putih ber-border 1px, label uppercase kecil, dan slip bergaya struk. Angka selalu rata kanan dan memakai tabular numerals. Token lengkap ada di <code>DESIGN.md</code>.</p>
+</header>
+
+<section class="tokens">
+  <div class="tok">
+    <h2>Palet</h2>
+    <div class="swatches">
+      <div class="sw"><i style="background:#4F46E5"></i><b>Primary</b><span>#4F46E5</span></div>
+      <div class="sw"><i style="background:#0F172A"></i><b>Ink</b><span>#0F172A</span></div>
+      <div class="sw"><i style="background:#64748B"></i><b>Muted</b><span>#64748B</span></div>
+      <div class="sw"><i style="background:#E2E8F0"></i><b>Border</b><span>#E2E8F0</span></div>
+      <div class="sw"><i style="background:#F1F5F9"></i><b>Canvas</b><span>#F1F5F9</span></div>
+      <div class="sw"><i style="background:#059669"></i><b>Paid</b><span>#059669</span></div>
+      <div class="sw"><i style="background:#B45309"></i><b>Unpaid</b><span>#B45309</span></div>
+      <div class="sw"><i style="background:#BE123C"></i><b>Danger</b><span>#BE123C</span></div>
+    </div>
+  </div>
+  <div class="tok">
+    <h2>Skala tipe</h2>
+    <div class="spec"><span style="font-size:26px;font-weight:800;letter-spacing:-.02em">Gaji bersih</span><em>26/800</em></div>
+    <div class="spec"><span style="font-size:20px;font-weight:700">Slip Gaji</span><em>20/700</em></div>
+    <div class="spec"><span style="font-size:14px;font-weight:600">Neon Box — Toko Sinar</span><em>14/600</em></div>
+    <div class="spec"><span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Periode 2026-10</span><em>11/700 caps</em></div>
+    <div class="spec"><span style="font-family:var(--mono);font-size:12px">Rp 212.367,02</span><em>mono 12</em></div>
+  </div>
+  <div class="tok">
+    <h2>Dua sumbu status</h2>
+    <div class="spec"><span><span class="badge paid" style="font-size:10px"><span class="dot"></span>Sudah dibayar</span></span><em>payment_status</em></div>
+    <div class="spec"><span><span class="badge unpaid" style="font-size:10px"><span class="dot"></span>Belum dibayar</span></span><em>payment_status</em></div>
+    <div class="spec"><span><span class="badge neutral" style="font-size:10px">Selesai</span> <span class="badge neutral" style="font-size:10px">Dikerjakan</span></span><em>job_status</em></div>
+    <div style="font-size:11px;line-height:1.5;color:#94A3B8;margin-top:10px">Hijau/kuning hanya untuk uang. Status pekerjaan selalu netral — supaya "Selesai" tidak terbaca "Sudah dibayar".</div>
+  </div>
+  <div class="tok">
+    <h2>Bentuk &amp; jarak</h2>
+    <div class="spec"><span>Kartu</span><em>radius 16 · border 1</em></div>
+    <div class="spec"><span>Input / tombol</span><em>radius 12 · tinggi 48</em></div>
+    <div class="spec"><span>Kertas slip</span><em>radius 8</em></div>
+    <div class="spec"><span>Badge</span><em>pill</em></div>
+    <div class="spec"><span>Gutter</span><em>16 · baris 64</em></div>
+    <div class="spec"><span>Bayangan</span><em>hanya app bar &amp; nav</em></div>
+  </div>
+</section>
+
+<div class="frames">
+
+  <!-- 1. LOGIN -->
+  <figure>
+    <figcaption><b>01 · Login</b><span>gerbang masuk — bukan hero</span></figcaption>
+    <div class="phone">
+      <div class="login">
+        <div class="sbar on-dark"><span>9:41</span><span class="dots"><i></i><i></i><i></i><i style="width:14px;height:5px;border-radius:2px;background:currentColor;opacity:.9"></i></span></div>
+        <div class="top">
+          <div class="brand">
+            <div class="mk">MP</div>
+            <div class="nm">Mann Plus Advertising</div>
+          </div>
+          <div class="hero">
+            <div class="k">Sistem penggajian</div>
+            <h2>Slip gaji<br>di tangan lo.</h2>
+            <p>Masuk pakai akun yang dikasih admin bengkel. Slip terbit dan status pembayaran langsung kelihatan.</p>
+          </div>
+        </div>
+        <div class="sheet">
+          <div class="field">
+            <div class="lb">Username</div>
+            <div class="inp focus">
+              <svg class="i" width="18" height="18" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <span class="ph">budi_teknisi</span>
+            </div>
+          </div>
+          <div class="field">
+            <div class="lb">Password</div>
+            <div class="inp">
+              <svg class="i" width="18" height="18" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              <span class="hint">••••••••</span>
+              <div style="flex:1"></div>
+              <svg class="i" width="18" height="18" viewBox="0 0 24 24" style="color:#94A3B8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="2.6"/></svg>
+            </div>
+          </div>
+          <button class="btn">Masuk
+            <svg class="i" width="16" height="16" viewBox="0 0 24 24" style="stroke:#fff"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+          <button class="btn ghost">Lupa password? Hubungi admin bengkel</button>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 2. BERANDA KARYAWAN -->
+  <figure>
+    <figcaption><b>02 · Beranda Karyawan</b><span>surface: monitor</span></figcaption>
+    <div class="phone">
+      <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i><i style="width:14px;height:5px;border-radius:2px;background:currentColor"></i></span></div>
+      <div class="appbar">
+        <div class="monogram">MP</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink);line-height:1.1">Budi Santoso</div>
+          <div style="font-size:11px;color:var(--muted)">Teknisi · EMP-002</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="icon-btn ghost" style="position:relative">
+          <svg class="i" width="18" height="18" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span style="position:absolute;top:8px;right:9px;width:6px;height:6px;border-radius:50%;background:var(--primary);border:1.5px solid #fff"></span>
+        </div>
+      </div>
+      <div class="scroll">
+        <div class="card" style="padding:14px 16px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between">
+            <div>
+              <div class="label">Periode 2026-10</div>
+              <div class="money-lg" style="margin-top:6px">Rp 212.367</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Slip SLIP-20261006-002</div>
+            </div>
+            <span class="badge paid"><span class="dot"></span>Dibayar</span>
+          </div>
+          <div style="height:1px;background:var(--border);margin:12px 0"></div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-muted)">
+            <span>Dibayar 06 Okt 2026</span>
+            <span style="color:var(--primary);font-weight:600">Lihat slip</span>
+          </div>
+        </div>
+
+        <div class="tiles">
+          <div class="tile"><div class="label">Diterima</div><div class="v">Rp 212.367</div></div>
+          <div class="tile"><div class="label">Tertunda</div><div class="v">Rp 0</div></div>
+          <div class="tile"><div class="label">Sisa kasbon</div><div class="v">Rp 100.000</div></div>
+        </div>
+
+        <div class="card" style="padding:14px 16px">
+          <div class="card-h" style="margin-bottom:6px">
+            <div class="t">Tugas aktif</div><a class="link" href="#">Lihat semua</a>
+          </div>
+          <div class="act" style="padding-top:8px">
+            <div class="c">
+              <div class="t">Neon Box — Toko Sinar Jaya</div>
+              <div class="s">SPK-20261006-005 · Rp 1.463.763</div>
+            </div>
+            <span class="badge neutral">Dikerjakan</span>
+          </div>
+          <div class="act">
+            <div class="c">
+              <div class="t">Billboard — CV Maju Bersama</div>
+              <div class="s">SPK-20261006-004 · Rp 2.100.000</div>
+            </div>
+            <span class="badge neutral">Belum</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px 16px">
+          <div class="card-h" style="margin-bottom:4px"><div class="t">Slip terbaru</div><a class="link" href="#">Semua</a></div>
+          <div class="act" style="border-bottom:0">
+            <div class="c">
+              <div class="t">Oktober 2026</div>
+              <div class="s">SLIP-20261006-002</div>
+            </div>
+            <div style="text-align:right">
+              <div class="money-sm">Rp 212.367</div>
+              <div style="margin-top:4px"><span class="badge paid"><span class="dot"></span>Dibayar</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="nav">
+        <div class="item on"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/></svg></div>Beranda</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3Z"/><path d="M9 8h6M9 12h4"/></svg></div>Slip</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h4"/></svg></div>Tugas</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>Profil</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 3. DAFTAR SLIP -->
+  <figure>
+    <figcaption><b>03 · Daftar Slip</b><span>surface: compare</span></figcaption>
+    <div class="phone">
+      <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i><i style="width:14px;height:5px;border-radius:2px;background:currentColor"></i></span></div>
+      <div class="appbar">
+        <div class="ttl">Slip Gaji</div>
+        <div class="spacer"></div>
+        <div class="icon-btn"><svg class="i" width="18" height="18" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg></div>
+      </div>
+      <div class="scroll tight" style="gap:12px">
+        <div class="chips">
+          <div class="chip on">Semua</div>
+          <div class="chip">Belum dibayar</div>
+          <div class="chip">Sudah dibayar</div>
+        </div>
+        <div>
+          <div class="label" style="margin:4px 0 8px">2026</div>
+          <div class="rows">
+            <div class="row">
+              <div class="per"><b>10</b><span>Okt</span></div>
+              <div class="body"><div class="t">Neon Box — Toko Sinar Jaya</div><div class="s">SLIP-20261006-002</div></div>
+              <div class="right"><div class="money-md">Rp 212.367</div><div class="b"><span class="badge paid"><span class="dot"></span>Dibayar</span></div></div>
+            </div>
+            <div class="row">
+              <div class="per"><b>09</b><span>Sep</span></div>
+              <div class="body"><div class="t">Billboard — CV Maju Bersama</div><div class="s">SLIP-20260901-011</div></div>
+              <div class="right"><div class="money-md">Rp 1.084.000</div><div class="b"><span class="badge paid"><span class="dot"></span>Dibayar</span></div></div>
+            </div>
+            <div class="row">
+              <div class="per"><b>08</b><span>Agu</span></div>
+              <div class="body"><div class="t">Rangka Neon — Kafe Kopi Pagi</div><div class="s">SLIP-20260803-007</div></div>
+              <div class="right"><div class="money-md">Rp 386.100</div><div class="b"><span class="badge unpaid"><span class="dot"></span>Belum</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="label" style="margin:4px 0 8px">2025</div>
+        <div class="rows">
+          <div class="row">
+            <div class="per"><b>12</b><span>Des</span></div>
+            <div class="body"><div class="t">Neon Box — Toko Bangunan</div><div class="s">SLIP-20251218-004</div></div>
+            <div class="right"><div class="money-md">Rp 497.200</div><div class="b"><span class="badge paid"><span class="dot"></span>Dibayar</span></div></div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);text-align:center;padding:2px 0 4px">Menampilkan 4 dari 4 slip</div>
+      </div>
+      <div class="nav">
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/></svg></div>Beranda</div>
+        <div class="item on"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3Z"/><path d="M9 8h6M9 12h4"/></svg></div>Slip</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h4"/></svg></div>Tugas</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>Profil</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 4. DETAIL SLIP -->
+  <figure>
+    <figcaption><b>04 · Detail Slip</b><span>surface: inspect — kertas struk</span></figcaption>
+    <div class="phone">
+      <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i><i style="width:14px;height:5px;border-radius:2px;background:currentColor"></i></span></div>
+      <div class="appbar">
+        <div class="icon-btn"><svg class="i" width="20" height="20" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="ttl">Slip Gaji</div>
+        <div class="spacer"></div>
+        <div class="icon-btn"><svg class="i" width="18" height="18" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></div>
+      </div>
+      <div class="scroll" style="padding:12px 12px 8px">
+        <div class="slip">
+          <div class="head">
+            <div class="nm">Mann Plus Advertising</div>
+            <div class="ad">Neon Box · Billboard · Media Promosi<br>Jl. Cirebon — Jawa Barat</div>
+          </div>
+          <dl class="meta">
+            <dt>No. Slip</dt><dd>SLIP-20261006-002</dd>
+            <dt>Periode</dt><dd>Oktober 2026</dd>
+            <dt>Tanggal</dt><dd>06-10-2026</dd>
+          </dl>
+          <div style="padding:8px 0 0">
+            <div class="kv"><span>Nama</span><span>Budi Santoso</span></div>
+            <div class="kv"><span>NIK</span><span>EMP-002</span></div>
+            <div class="kv"><span>Jabatan</span><span>Teknisi Advertising</span></div>
+          </div>
+          <div class="sep"></div>
+          <div class="kv"><span>Nilai SPK</span><span class="num">1.463.763,00</span></div>
+          <div class="kv"><span>PPN 3%</span><span class="num">-43.912,89</span></div>
+          <div class="kv"><span>Nilai bersih</span><span class="num">1.419.850,11</span></div>
+          <div class="sep"></div>
+          <div class="kv"><span>Komisi 22%</span><span class="num">312.367,02</span></div>
+          <div class="kv"><span>Tunjangan makan</span><span class="num">0,00</span></div>
+          <div class="kv"><span>Potongan kasbon</span><span class="num">-100.000,00</span></div>
+          <div class="sep double"></div>
+          <div class="total"><span class="k">Gaji bersih</span><span class="v">Rp 212.367,02</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <span class="badge paid" style="font-family:var(--font)"><span class="dot"></span>Sudah dibayar 06-10-2026</span>
+            <span style="font-size:9px;color:var(--muted)">Sisa kasbon Rp 0</span>
+          </div>
+          <div class="foot">
+            <div class="note">Slip ini dibuat otomatis oleh sistem penggajian Mann Plus.</div>
+            <svg class="qr" viewBox="0 0 33 33" shape-rendering="crispEdges">
+              <rect width="33" height="33" fill="#fff"/>
+              <g fill="#0F172A">
+                <rect x="1" y="1" width="7" height="7"/><rect x="25" y="1" width="7" height="7"/><rect x="1" y="25" width="7" height="7"/>
+                <rect x="3" y="3" width="3" height="3" fill="#fff"/><rect x="27" y="3" width="3" height="3" fill="#fff"/><rect x="3" y="27" width="3" height="3" fill="#fff"/>
+                <rect x="10" y="1" width="1" height="1"/><rect x="12" y="1" width="2" height="1"/><rect x="16" y="2" width="1" height="1"/>
+                <rect x="10" y="3" width="1" height="2"/><rect x="14" y="4" width="2" height="1"/><rect x="18" y="3" width="1" height="2"/>
+                <rect x="11" y="6" width="2" height="1"/><rect x="15" y="7" width="1" height="1"/><rect x="19" y="5" width="1" height="2"/>
+                <rect x="10" y="9" width="2" height="1"/><rect x="13" y="10" width="1" height="2"/><rect x="17" y="9" width="2" height="1"/>
+                <rect x="21" y="2" width="1" height="1"/><rect x="22" y="4" width="1" height="2"/><rect x="21" y="7" width="2" height="1"/>
+                <rect x="1" y="10" width="1" height="2"/><rect x="3" y="11" width="2" height="1"/><rect x="6" y="10" width="1" height="1"/>
+                <rect x="2" y="14" width="2" height="1"/><rect x="5" y="15" width="1" height="2"/><rect x="7" y="13" width="1" height="1"/>
+                <rect x="1" y="18" width="1" height="2"/><rect x="4" y="19" width="2" height="1"/><rect x="7" y="20" width="1" height="1"/>
+                <rect x="10" y="12" width="1" height="1"/><rect x="12" y="13" width="2" height="1"/><rect x="16" y="12" width="1" height="2"/>
+                <rect x="11" y="16" width="2" height="1"/><rect x="14" y="17" width="1" height="1"/><rect x="18" y="16" width="2" height="1"/>
+                <rect x="10" y="20" width="1" height="2"/><rect x="13" y="19" width="2" height="1"/><rect x="17" y="20" width="1" height="1"/>
+                <rect x="21" y="10" width="2" height="1"/><rect x="24" y="11" width="1" height="2"/><rect x="27" y="10" width="1" height="1"/>
+                <rect x="22" y="14" width="1" height="1"/><rect x="25" y="15" width="2" height="1"/><rect x="28" y="13" width="1" height="2"/>
+                <rect x="21" y="18" width="1" height="2"/><rect x="24" y="19" width="2" height="1"/><rect x="28" y="20" width="1" height="1"/>
+                <rect x="10" y="25" width="2" height="1"/><rect x="13" y="26" width="1" height="2"/><rect x="17" y="25" width="2" height="1"/>
+                <rect x="11" y="29" width="1" height="1"/><rect x="15" y="30" width="2" height="1"/><rect x="19" y="28" width="1" height="2"/>
+                <rect x="21" y="25" width="2" height="1"/><rect x="25" y="26" width="1" height="1"/><rect x="28" y="27" width="1" height="2"/>
+                <rect x="23" y="29" width="1" height="1"/><rect x="26" y="30" width="2" height="1"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);text-align:center;padding:2px 8px">Pindai QR untuk memverifikasi keaslian slip · <span style="font-family:var(--mono)">SLIP-20261006-002</span></div>
+      </div>
+      <div class="bottombar">
+        <button class="btn secondary" style="flex:1">
+          <svg class="i" width="16" height="16" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+          Bagikan
+        </button>
+        <button class="btn" style="flex:1">
+          <svg class="i" width="16" height="16" viewBox="0 0 24 24" style="stroke:#fff"><path d="M12 3v12M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>
+          Unduh PDF
+        </button>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 5. NOTIFIKASI -->
+  <figure>
+    <figcaption><b>05 · Notifikasi</b><span>surface: operate — fitur inti skripsi</span></figcaption>
+    <div class="phone">
+      <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i><i style="width:14px;height:5px;border-radius:2px;background:currentColor"></i></span></div>
+      <div class="appbar">
+        <div class="ttl">Notifikasi</div>
+        <div class="spacer"></div>
+        <a class="link" href="#">Tandai dibaca</a>
+      </div>
+      <div class="feed">
+        <div class="grp">Hari ini</div>
+        <div class="nrow">
+          <span class="unread"></span>
+          <div class="ico"><svg class="i" width="17" height="17" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg></div>
+          <div class="c">
+            <div class="t">Slip gaji Oktober sudah dibayar</div>
+            <div class="s">SLIP-20261006-002 · Rp 212.367,02</div>
+          </div>
+          <div class="tm">09:12</div>
+        </div>
+        <div class="nrow">
+          <span class="unread"></span>
+          <div class="ico"><svg class="i" width="17" height="17" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 10h6M9 14h4"/></svg></div>
+          <div class="c">
+            <div class="t">SPK baru ditugaskan ke lo</div>
+            <div class="s">SPK-20261017-001 · Neon Box — Toko Sinar Jaya</div>
+          </div>
+          <div class="tm">08:40</div>
+        </div>
+        <div class="grp">Minggu ini</div>
+        <div class="nrow read">
+          <div class="ico"><svg class="i" width="17" height="17" viewBox="0 0 24 24"><path d="M12 3v12M7 11l5 5 5-5"/><path d="M4 20h16"/></svg></div>
+          <div class="c">
+            <div class="t">Slip September diterbitkan</div>
+            <div class="s">SLIP-20260901-011 · Rp 1.084.000,00</div>
+          </div>
+          <div class="tm">Sen</div>
+        </div>
+        <div class="nrow read">
+          <div class="ico"><svg class="i" width="17" height="17" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg></div>
+          <div class="c">
+            <div class="t">Kasbon Rp 100.000 dicatat</div>
+            <div class="s">Akan dipotong otomatis di slip berikutnya</div>
+          </div>
+          <div class="tm">Sen</div>
+        </div>
+        <div class="nrow read">
+          <div class="ico"><svg class="i" width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></div>
+          <div class="c">
+            <div class="t">Pengingat: SPK belum diubah statusnya</div>
+            <div class="s">SPK-20261006-004 masih "Belum Dikerjakan"</div>
+          </div>
+          <div class="tm">Min</div>
+        </div>
+      </div>
+      <div class="nav">
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/></svg></div>Beranda</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3Z"/><path d="M9 8h6M9 12h4"/></svg></div>Slip</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h4"/></svg></div>Tugas</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>Profil</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 6. BERANDA ADMIN -->
+  <figure>
+    <figcaption><b>06 · Beranda Admin</b><span>surface: monitor + operate</span></figcaption>
+    <div class="phone">
+      <div class="sbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i><i style="width:14px;height:5px;border-radius:2px;background:currentColor"></i></span></div>
+      <div class="appbar">
+        <div class="monogram">AD</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink);line-height:1.1">Administrator</div>
+          <div style="font-size:11px;color:var(--muted)">Kepala Admin</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="icon-btn ghost">
+          <svg class="i" width="18" height="18" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        </div>
+      </div>
+      <div class="scroll tight" style="gap:12px">
+        <div class="tiles two">
+          <div class="tile"><div class="label">SPK aktif</div><div class="v lg">1</div><div style="font-size:10px;color:var(--muted);margin-top:2px">total Rp 1.463.763</div></div>
+          <div class="tile"><div class="label">Karyawan aktif</div><div class="v lg">4</div><div style="font-size:10px;color:var(--muted);margin-top:2px">2 teknisi</div></div>
+          <div class="tile"><div class="label">Kasbon berjalan</div><div class="v lg">Rp 100.000</div><div style="font-size:10px;color:var(--muted);margin-top:2px">belum terpotong</div></div>
+          <div class="tile"><div class="label">Slip belum dibayar</div><div class="v lg">0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">dari 1 slip</div></div>
+        </div>
+
+        <div class="card" style="padding:14px 16px">
+          <div class="card-h" style="margin-bottom:2px"><div class="t">Perlu tindakan</div></div>
+          <div class="act" style="padding-top:8px">
+            <div class="c">
+              <div class="t">1 SPK selesai belum punya slip</div>
+              <div class="s">SPK-20261006-005 · Budi Santoso</div>
+            </div>
+            <button class="mini">Buat slip</button>
+          </div>
+          <div class="act">
+            <div class="c">
+              <div class="t">Semua slip sudah dibayar</div>
+              <div class="s">Tidak ada tunggakan pembayaran</div>
+            </div>
+            <span class="badge paid"><span class="dot"></span>Beres</span>
+          </div>
+        </div>
+
+        <div class="quick">
+          <div class="q"><div class="ic"><svg class="i" width="17" height="17" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 10h6M9 14h4"/></svg></div>SPK</div>
+          <div class="q"><div class="ic"><svg class="i" width="17" height="17" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg></div>Kasbon</div>
+          <div class="q"><div class="ic"><svg class="i" width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></div>Karyawan</div>
+          <div class="q"><div class="ic"><svg class="i" width="17" height="17" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg></div>Slip</div>
+        </div>
+
+        <div class="card" style="padding:14px 16px">
+          <div class="card-h" style="margin-bottom:4px"><div class="t">SPK terbaru</div><a class="link" href="#">Semua</a></div>
+          <div class="act" style="padding-top:8px">
+            <div class="c"><div class="t">Neon Box — Toko Sinar Jaya</div><div class="s">SPK-20261006-005 · Budi Santoso</div></div>
+            <div style="text-align:right"><div class="money-sm">Rp 1.463.763</div><div style="margin-top:4px"><span class="badge neutral">Selesai</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="nav">
+        <div class="item on"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/></svg></div>Beranda</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3Z"/><path d="M9 8h6M9 12h4"/></svg></div>Slip</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h4"/></svg></div>SPK</div>
+        <div class="item"><div class="ic"><svg class="i" width="19" height="19" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>Profil</div>
+      </div>
+    </div>
+  </figure>
+
+</div>
+</body>
+</html>
