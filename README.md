@@ -73,4 +73,4 @@ lib/
 ## Catatan
 
 - `android/app/google-services.json` sudah disertakan agar build APK langsung jalan.
-- APK rilis dibangun otomatis lewat pipeline CI/CD (lihat `../CI-CD.md`).
+- APK rilis dibangun otomatis lewat pipeline CI/CD (lihat `CI-CD.md` di paket skripsi).
