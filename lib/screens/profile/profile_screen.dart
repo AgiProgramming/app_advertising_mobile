@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../state/auth_state.dart';
 import '../cash_advance/cash_advance_screen.dart';
+import '../master/master_data_screen.dart';
 import '../notifications/notification_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -83,6 +84,16 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
+                if (auth.role == 'Admin') ...[
+                  _MenuRow(
+                    icon: Icons.dataset_outlined,
+                    label: 'Data master (karyawan & toko)',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const MasterDataScreen()),
+                    ),
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                ],
                 _MenuRow(
                   icon: Icons.info_outline_rounded,
                   label: 'Tentang aplikasi',

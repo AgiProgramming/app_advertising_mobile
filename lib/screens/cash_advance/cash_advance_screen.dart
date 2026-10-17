@@ -7,6 +7,7 @@ import '../../models/cash_advance.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/ui.dart';
 import '../shell_screen.dart';
+import 'cash_advance_form_screen.dart';
 
 /// Daftar kasbon. Karyawan melihat kasbon miliknya, Admin melihat semua.
 class CashAdvanceScreen extends StatefulWidget {
@@ -57,6 +58,20 @@ class _CashAdvanceScreenState extends State<CashAdvanceScreen> {
 
     return Scaffold(
       appBar: const AppBarWithNotifications(title: 'Kasbon'),
+      floatingActionButton: role == 'Admin'
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final changed = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(builder: (_) => const CashAdvanceFormScreen()),
+                );
+                if (changed == true) _load();
+              },
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text('Kasbon', style: appText(size: 13, weight: FontWeight.w700, color: Colors.white)),
+            )
+          : null,
       body: AsyncContent(
         loading: _loading,
         error: _error,

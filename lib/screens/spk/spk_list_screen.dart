@@ -7,6 +7,8 @@ import '../../models/spk.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/ui.dart';
 import '../shell_screen.dart';
+import '../payroll/payroll_create_screen.dart';
+import 'spk_form_screen.dart';
 
 /// Daftar SPK / tugas. Untuk karyawan hanya berisi SPK yang ditugaskan ke dia.
 class SpkListScreen extends StatefulWidget {
@@ -62,6 +64,20 @@ class _SpkListScreenState extends State<SpkListScreen> {
 
     return Scaffold(
       appBar: AppBarWithNotifications(title: isKaryawan ? 'Tugas Saya' : 'Surat Perintah Kerja'),
+      floatingActionButton: isKaryawan
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () async {
+                final changed = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(builder: (_) => const SpkFormScreen()),
+                );
+                if (changed == true) _load();
+              },
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text('SPK', style: appText(size: 13, weight: FontWeight.w700, color: Colors.white)),
+            ),
       body: AsyncContent(
         loading: _loading,
         error: _error,
@@ -190,6 +206,37 @@ class _SpkListScreenState extends State<SpkListScreen> {
               Text(spk.description!, style: appText(size: 13, height: 1.5, color: AppColors.inkMuted)),
             ],
             const SizedBox(height: 16),
+            if (context.read<AuthState>().role != 'Karyawan') ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        final changed = await Navigator.of(this.context).push<bool>(
+                          MaterialPageRoute(builder: (_) => SpkFormScreen(spk: spk)),
+                        );
+                        if (changed == true) _load();
+                      },
+                      child: const Text('Ubah SPK'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(this.context).push(
+                          MaterialPageRoute(builder: (_) => PayrollCreateScreen(spkId: spk.id)),
+                        );
+                      },
+                      child: const Text('Buat slip'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
             FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Tutup')),
           ],
         ),

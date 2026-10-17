@@ -7,6 +7,7 @@ import '../../models/payroll.dart';
 import '../../state/auth_state.dart';
 import '../../widgets/ui.dart';
 import '../shell_screen.dart';
+import 'payroll_create_screen.dart';
 import 'slip_detail_screen.dart';
 
 /// Daftar slip gaji (surface: compare) — dikelompokkan per tahun.
@@ -63,6 +64,20 @@ class _SlipListScreenState extends State<SlipListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const AppBarWithNotifications(title: 'Slip Gaji'),
+      floatingActionButton: context.watch<AuthState>().role == 'Admin'
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final changed = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(builder: (_) => const PayrollCreateScreen()),
+                );
+                if (changed == true) _load();
+              },
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text('Buat slip', style: appText(size: 13, weight: FontWeight.w700, color: Colors.white)),
+            )
+          : null,
       body: AsyncContent(
         loading: _loading,
         error: _error,
