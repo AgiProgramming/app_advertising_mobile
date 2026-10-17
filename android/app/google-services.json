@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1051289888381",
+    "project_id": "mann-plus",
+    "storage_bucket": "mann-plus.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1051289888381:android:c6a85f3f81dfc163327314",
+        "android_client_info": {
+          "package_name": "com.example.mannplus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBu8JbB8LEBOF6OKDX3SczvuyMab-mApKU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
