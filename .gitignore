@@ -5,3 +5,6 @@ build/
 *.iml
 .idea/
 design/*.png
+
+# artefak build Kotlin
+android/.kotlin/
