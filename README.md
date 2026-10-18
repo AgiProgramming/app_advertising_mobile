@@ -7,8 +7,8 @@ langsung dari ponsel.
 > Skripsi: *Analisis dan Optimalisasi Fitur Penggajian Karyawan Menggunakan Pendekatan DevOps*
 > Backend: repositori `app_advertising` (Laravel 12 + Sanctum)
 
-<!-- Ganti <USERNAME> dengan akun GitHub kamu setelah repo di-push -->
-![Mobile CI](https://github.com/<USERNAME>/app-advertising-mobile/actions/workflows/ci.yml/badge.svg)
+<!-- Badge pipeline (repo: AgiProgramming/app_advertising_mobile) -->
+![Mobile CI](https://github.com/AgiProgramming/app_advertising_mobile/actions/workflows/ci.yml/badge.svg)
 
 ## Teknologi
 
