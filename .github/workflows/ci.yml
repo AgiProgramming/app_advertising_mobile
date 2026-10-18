@@ -79,7 +79,9 @@ jobs:
         run: flutter pub get
 
       - name: Build APK (arm64)
-        run: flutter build apk --release --target-platform android-arm64 --no-pub
+        run: |
+          flutter build apk --release --target-platform android-arm64 --no-pub \
+            --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'https://apimann.gondrii.my.id' }}
 
       - name: Ganti nama berkas
         run: |
