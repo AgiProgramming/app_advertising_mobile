@@ -44,7 +44,8 @@ void main() {
     // 5. Detail slip
     final detail = await services.payroll(slip.id);
     expect(detail.id, slip.id);
-    expect(detail.originalSpkValue, greaterThan(0));
+    expect(detail.grossShare, greaterThan(0));
+    expect(detail.items, isNotEmpty);
 
     // 6. SPK
     final spks = await services.spks();

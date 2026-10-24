@@ -1,19 +1,12 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 
-import '../../core/formatters.dart';
 import '../../core/theme.dart';
 import '../../models/payroll.dart';
 import '../../state/auth_state.dart';
-import '../../widgets/ui.dart';
 
-/// Detail slip (surface: inspect) — dibuat seperti struk: mono, garis
-/// putus-putus, total bergaris ganda, dan QR verifikasi.
+/// Detail slip gaji: rincian bagian dari setiap SPK, potongan, dan gaji bersih.
 class SlipDetailScreen extends StatefulWidget {
   const SlipDetailScreen({super.key, required this.payrollId});
 
@@ -26,8 +19,10 @@ class SlipDetailScreen extends StatefulWidget {
 class _SlipDetailScreenState extends State<SlipDetailScreen> {
   Payroll? _payroll;
   bool _loading = true;
-  bool _downloading = false;
+  bool _busy = false;
   String? _error;
+
+  final _rp = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 2);
 
   @override
   void initState() {
@@ -36,11 +31,6 @@ class _SlipDetailScreenState extends State<SlipDetailScreen> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
     try {
       final payroll = await context.read<AuthState>().services.payroll(widget.payrollId);
       if (!mounted) return;
@@ -57,308 +47,265 @@ class _SlipDetailScreenState extends State<SlipDetailScreen> {
     }
   }
 
-  String get _shareText {
-    final payroll = _payroll;
-    if (payroll == null) return '';
-
-    return '''
-SLIP GAJI - MANN PLUS ADVERTISING
-${payroll.slipNumber} · ${Formats.period(payroll.period)}
-Nama: ${payroll.employeeName ?? '-'} (${payroll.employeeNik ?? '-'})
-Pekerjaan: ${payroll.jobName ?? '-'}
-
-Nilai SPK: ${Formats.rupiahExact(payroll.originalSpkValue)}
-PPN 3%: -${Formats.rupiahExact(payroll.ppnAmount)}
-Nilai bersih: ${Formats.rupiahExact(payroll.netSpkValue)}
-Komisi ${payroll.salaryPercentage.toStringAsFixed(0)}%: ${Formats.rupiahExact(payroll.grossSalary)}
-Tunjangan makan: ${Formats.rupiahExact(payroll.mealAllowance)}
-Potongan kasbon: -${Formats.rupiahExact(payroll.cashAdvanceDeduction)}
-
-GAJI BERSIH: ${Formats.rupiahExact(payroll.netSalary)}
-Status: ${payroll.paymentStatus}
-${payroll.verifyUrl != null ? '\nVerifikasi: ${payroll.verifyUrl}' : ''}
-''';
-  }
-
-  Future<void> _shareText_() async {
-    final payroll = _payroll;
-    if (payroll == null) return;
-
-    await SharePlus.instance.share(ShareParams(
-      text: _shareText,
-      subject: 'Slip ${payroll.slipNumber}',
-    ));
+  Future<void> _markPaid() async {
+    setState(() => _busy = true);
+    try {
+      await context.read<AuthState>().services.markPaid(widget.payrollId);
+      await _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _downloadPdf() async {
-    final payroll = _payroll;
-    if (payroll == null || _downloading) return;
-
-    setState(() => _downloading = true);
-
+    setState(() => _busy = true);
     try {
-      final bytes = await context.read<AuthState>().services.payrollPdf(payroll.id);
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/slip-${payroll.slipNumber}.pdf');
-      await file.writeAsBytes(bytes);
-
-      await SharePlus.instance.share(ShareParams(
-        files: [XFile(file.path, mimeType: 'application/pdf')],
-        subject: 'Slip ${payroll.slipNumber}',
-        text: 'Slip gaji ${Formats.period(payroll.period)}',
-      ));
+      final bytes = await context.read<AuthState>().services.payrollPdf(widget.payrollId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF slip siap (${(bytes.lengthInBytes / 1024).toStringAsFixed(0)} KB).')),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengunduh slip: $e')));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     } finally {
-      if (mounted) setState(() => _downloading = false);
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  String _period(String period) {
+    try {
+      return DateFormat('MMMM yyyy', 'id_ID').format(DateTime.parse('$period-01'));
+    } catch (_) {
+      return period;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final payroll = _payroll;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Slip Gaji'),
-        actions: [
-          if (payroll != null)
-            IconButton(onPressed: _shareText_, icon: const Icon(Icons.ios_share_rounded)),
-          const SizedBox(width: 4),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Detail Slip')),
       body: _loading
           ? const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)))
           : _error != null
-              ? ErrorView(message: _error!, onRetry: _load)
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
-                  child: Column(
-                    children: [
-                      _SlipPaper(payroll: payroll!),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Pindai QR untuk memverifikasi keaslian slip · ${payroll.slipNumber}',
-                        textAlign: TextAlign.center,
-                        style: appText(size: 10, color: AppColors.muted),
-                      ),
-                    ],
-                  ),
-                ),
-      bottomNavigationBar: payroll == null
-          ? null
-          : SafeArea(
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border(top: BorderSide(color: AppColors.border)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _shareText_,
-                        icon: const Icon(Icons.ios_share_rounded, size: 16),
-                        label: const Text('Bagikan'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _downloading ? null : _downloadPdf,
-                        icon: _downloading
-                            ? const SizedBox(
-                                width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.download_rounded, size: 16),
-                        label: Text(_downloading ? 'Menyiapkan…' : 'Unduh PDF'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center)))
+              : _content(_payroll!),
     );
   }
-}
 
-class _SlipPaper extends StatelessWidget {
-  const _SlipPaper({required this.payroll});
+  Widget _content(Payroll p) {
+    final negative = p.netSalary < 0;
 
-  final Payroll payroll;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('SLIP GAJI', style: labelText(color: AppColors.muted)),
+                        const SizedBox(height: 3),
+                        Text(_period(p.period), style: appText(size: 16, weight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: p.isPaid ? AppColors.successSoft : AppColors.warningSoft,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      p.paymentStatus,
+                      style: appText(
+                        size: 11,
+                        weight: FontWeight.w600,
+                        color: p.isPaid ? AppColors.success : AppColors.warning,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _row('No. Slip', p.slipNumber, mono: true),
+              _row('Nama', p.employeeName ?? '-'),
+              _row('NIK', p.employeeNik ?? '-'),
+              _row('Jumlah SPK', '${p.spkCount} pekerjaan'),
+              if (p.paymentDate != null) _row('Dibayar', p.paymentDate!),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text('RINCIAN SPK', style: labelText(color: AppColors.inkMuted)),
+        const SizedBox(height: 8),
+        if (p.items.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text('Slip lama tanpa rincian per SPK.', style: appText(size: 12.5, color: AppColors.muted)),
+          )
+        else
+          for (final item in p.items) _itemCard(item),
+        const SizedBox(height: 16),
+        Text('PERHITUNGAN', style: labelText(color: AppColors.inkMuted)),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              _row('Bagian kotor', _rp.format(p.grossShare)),
+              _row('PPN ${_pct(p.ppnRate)}%', '-${_rp.format(p.ppnAmount)}', danger: true),
+              _row('Komisi ${_pct(p.commissionRate)}%', '-${_rp.format(p.commissionAmount)}', danger: true),
+              _row('Uang makan (${p.mealCount} SPK)', '-${_rp.format(p.mealDeduction)}', danger: true),
+              if (p.cashAdvanceDeduction > 0)
+                _row('Potongan kasbon', '-${_rp.format(p.cashAdvanceDeduction)}', danger: true),
+              const Divider(height: 22),
+              Row(
+                children: [
+                  Expanded(child: Text('GAJI BERSIH', style: labelText(color: AppColors.ink))),
+                  Text(
+                    _rp.format(p.netSalary),
+                    style: appText(
+                      size: 19,
+                      weight: FontWeight.w800,
+                      color: negative ? AppColors.danger : AppColors.ink,
+                    ),
+                  ),
+                ],
+              ),
+              if (negative) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Hasil minus: potongan melebihi bagian karyawan pada periode ini.',
+                  style: appText(size: 11.5, color: AppColors.danger),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : _downloadPdf,
+                icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                label: const Text('PDF'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: (_busy || p.isPaid) ? null : _markPaid,
+                icon: const Icon(Icons.check_circle_outline, size: 18),
+                label: Text(p.isPaid ? 'Sudah Dibayar' : 'Tandai Dibayar'),
+              ),
+            ),
+          ],
+        ),
+        if (p.verifyUrl != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Verifikasi: ${p.verifyUrl}',
+            style: appText(size: 10.5, color: AppColors.muted),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ],
+    );
+  }
 
-  static TextStyle get _mono => const TextStyle(
-        fontFamily: 'monospace',
-        fontSize: 11.5,
-        height: 1.7,
-        color: AppColors.ink,
-        fontFeatures: [FontFeature.tabularFigures()],
-      );
+  String _pct(double value) =>
+      value == value.roundToDouble() ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
 
-  TextStyle get _monoMuted => _mono.copyWith(color: AppColors.muted, fontSize: 10.5);
-
-  @override
-  Widget build(BuildContext context) {
-    final commission = payroll.salaryPercentage % 1 == 0
-        ? payroll.salaryPercentage.toStringAsFixed(0)
-        : payroll.salaryPercentage.toStringAsFixed(2);
-
+  Widget _itemCard(PayrollItem item) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
-      padding: const EdgeInsets.all(18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            children: [
-              Text('MANN PLUS ADVERTISING',
-                  textAlign: TextAlign.center,
-                  style: appText(size: 12, weight: FontWeight.w800, letterSpacing: 1.4)),
-              const SizedBox(height: 3),
-              Text('Neon Box · Billboard · Media Promosi\nJl. Cirebon — Jawa Barat',
-                  textAlign: TextAlign.center, style: _monoMuted.copyWith(height: 1.5)),
-            ],
-          ),
-          const _DashedDivider(),
-          _MetaRow(label: 'No. Slip', value: payroll.slipNumber),
-          _MetaRow(label: 'Periode', value: Formats.period(payroll.period)),
-          _MetaRow(label: 'Tanggal', value: Formats.dateFromIso(payroll.createdAt?.toIso8601String())),
-          const SizedBox(height: 6),
-          _MetaRow(label: 'Nama', value: payroll.employeeName ?? '-'),
-          _MetaRow(label: 'NIK', value: payroll.employeeNik ?? '-'),
-          _MetaRow(label: 'Jabatan', value: payroll.employeePosition ?? '-'),
-          _MetaRow(label: 'Pekerjaan', value: payroll.jobName ?? '-'),
-          const _DashedDivider(),
-          _MetaRow(label: 'Nilai SPK', value: Formats.amount(payroll.originalSpkValue)),
-          _MetaRow(label: 'PPN 3%', value: '-${Formats.amount(payroll.ppnAmount)}'),
-          _MetaRow(label: 'Nilai bersih', value: Formats.amount(payroll.netSpkValue)),
-          const _DashedDivider(),
-          _MetaRow(label: 'Komisi $commission%', value: Formats.amount(payroll.grossSalary)),
-          _MetaRow(label: 'Tunjangan makan', value: Formats.amount(payroll.mealAllowance)),
-          _MetaRow(label: 'Potongan kasbon', value: '-${Formats.amount(payroll.cashAdvanceDeduction)}'),
-          const SizedBox(height: 8),
-          Container(height: 3, decoration: const BoxDecoration(
-            border: Border(
-              top: BorderSide(color: AppColors.borderStrong),
-              bottom: BorderSide(color: AppColors.borderStrong),
-            ),
-          )),
-          const SizedBox(height: 10),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Text('GAJI BERSIH',
-                    style: appText(size: 10, weight: FontWeight.w700, color: AppColors.inkMuted, letterSpacing: 0.8)),
-              ),
-              Money(Formats.amount(payroll.netSalary), size: 19, weight: FontWeight.w800),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              StatusBadge.payment(payroll.paymentStatus),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  payroll.paymentDate != null ? Formats.dateFromIso(payroll.paymentDate) : '',
-                  style: _monoMuted,
-                ),
-              ),
-            ],
-          ),
-          const _DashedDivider(),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: Text(
-                  'Slip ini dibuat otomatis oleh sistem penggajian Mann Plus Advertising.',
-                  style: _monoMuted.copyWith(fontSize: 9, height: 1.5),
+                  item.shortNumber,
+                  style: appText(size: 13, weight: FontWeight.w700),
                 ),
               ),
-              const SizedBox(width: 10),
-              if (payroll.verifyUrl != null)
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.border),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: QrImageView(
-                    data: payroll.verifyUrl!,
-                    size: 58,
-                    padding: EdgeInsets.zero,
-                    backgroundColor: Colors.white,
-                  ),
-                ),
+              Text(_rp.format(item.shareAmount), style: appText(size: 13.5, weight: FontWeight.w700, color: AppColors.primary)),
+            ],
+          ),
+          if (item.jobName != null) ...[
+            const SizedBox(height: 2),
+            Text(item.jobName!, style: appText(size: 11.5, color: AppColors.muted)),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 14,
+            runSpacing: 4,
+            children: [
+              _chip('Nilai SPK', _rp.format(item.spkValue)),
+              _chip('Orang', '${item.slotCount}'),
+              _chip('Hari', '${item.daysWorked}/${item.durationDays}'),
+              _chip('Per hari', _rp.format(item.dailyRate)),
             ],
           ),
         ],
       ),
     );
   }
-}
 
-class _MetaRow extends StatelessWidget {
-  const _MetaRow({required this.label, required this.value});
+  Widget _chip(String label, String value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(), style: appText(size: 9, color: AppColors.muted, weight: FontWeight.w600)),
+          Text(value, style: appText(size: 11.5, weight: FontWeight.w600)),
+        ],
+      );
 
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = const TextStyle(
-      fontFamily: 'monospace',
-      fontSize: 11.5,
-      height: 1.7,
-      color: AppColors.ink,
-      fontFeatures: [FontFeature.tabularFigures()],
-    );
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: Text(label, style: style.copyWith(color: AppColors.inkMuted, fontSize: 10.5))),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(value,
-              textAlign: TextAlign.right,
-              style: style.copyWith(fontWeight: FontWeight.w500)),
-        ),
-      ],
-    );
-  }
-}
-
-class _DashedDivider extends StatelessWidget {
-  const _DashedDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const dashWidth = 4.0;
-          const dashSpace = 3.0;
-          final count = (constraints.maxWidth / (dashWidth + dashSpace)).floor();
-
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(
-              count,
-              (_) => Container(width: dashWidth, height: 1, color: AppColors.borderStrong),
+  Widget _row(String label, String value, {bool mono = false, bool danger = false}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: Text(label, style: appText(size: 12.5, color: AppColors.inkMuted))),
+            Text(
+              value,
+              style: appText(
+                size: mono ? 11.5 : 12.5,
+                weight: FontWeight.w600,
+                color: danger ? AppColors.danger : AppColors.ink,
+              ),
             ),
-          );
-        },
-      ),
-    );
-  }
+          ],
+        ),
+      );
 }

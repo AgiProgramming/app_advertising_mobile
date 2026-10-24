@@ -236,7 +236,10 @@ class _SlipRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(payroll.jobName ?? '-',
+                  Text(
+                      payroll.items.isNotEmpty
+                          ? (payroll.items.first.jobName ?? 'Slip ${payroll.period}')
+                          : 'Slip ${payroll.period}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: appText(size: 13.5, weight: FontWeight.w600, height: 1.3)),
