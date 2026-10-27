@@ -67,6 +67,43 @@ class ApiClient {
         () => http.delete(_uri(path), headers: _headers, body: body == null ? null : jsonEncode(body)),
       );
 
+  /// Unggah berkas (multipart) — dipakai untuk membaca PDF SPK.
+  Future<dynamic> upload(
+    String path, {
+    required String field,
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    final request = http.MultipartRequest('POST', _uri(path));
+    request.headers.addAll({
+      'Accept': 'application/json',
+      if (token != null && token!.isNotEmpty) 'Authorization': 'Bearer $token',
+    });
+    request.files.add(http.MultipartFile.fromBytes(field, bytes, filename: filename));
+
+    final streamed = await request.send();
+    final body = await streamed.stream.bytesToString();
+
+    dynamic decoded;
+    try {
+      decoded = body.isEmpty ? null : jsonDecode(body);
+    } catch (_) {
+      decoded = null;
+    }
+
+    if (streamed.statusCode == 401) {
+      onUnauthorized?.call();
+      throw Exception('Sesi berakhir. Silakan masuk lagi.');
+    }
+
+    if (streamed.statusCode >= 400) {
+      final message = decoded is Map ? (decoded['message'] ?? 'Gagal mengunggah berkas.') : 'Gagal mengunggah berkas.';
+      throw Exception('$message');
+    }
+
+    return decoded;
+  }
+
   /// Unduh berkas biner (dipakai untuk PDF slip gaji).
   Future<Uint8List> download(String path) async {
     try {

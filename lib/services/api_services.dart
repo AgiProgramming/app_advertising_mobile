@@ -74,6 +74,23 @@ class ApiServices {
     return Payroll.fromJson(Map<String, dynamic>.from((data as Map)['data'] as Map));
   }
 
+  /// Pratinjau gaji satu karyawan pada satu periode (belum disimpan).
+  Future<Map<String, dynamic>> previewPayroll(Map<String, dynamic> body) async {
+    final data = await client.post('/api/payrolls/preview', body: body);
+    return Map<String, dynamic>.from((data as Map)['data'] as Map);
+  }
+
+  /// Baca data SPK dari berkas PDF yang diunggah.
+  Future<Map<String, dynamic>> parseSpkPdf(List<int> bytes, String filename) async {
+    final data = await client.upload(
+      '/api/spks/parse-pdf',
+      field: 'file',
+      bytes: bytes,
+      filename: filename,
+    );
+    return Map<String, dynamic>.from((data as Map)['data'] as Map);
+  }
+
   Future<Payroll> updatePayroll(String id, Map<String, dynamic> body) async {
     final data = await client.put('/api/payrolls/$id', body: body);
     return Payroll.fromJson(Map<String, dynamic>.from((data as Map)['data'] as Map));

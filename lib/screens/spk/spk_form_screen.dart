@@ -1,3 +1,4 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -61,6 +62,7 @@ class _SpkFormScreenState extends State<SpkFormScreen> {
   List<Employee> _employees = const [];
   bool _loadingRefs = true;
   bool _saving = false;
+  bool _uploading = false;
   String? _error;
 
   bool get _isEdit => widget.spk != null;
@@ -293,6 +295,74 @@ class _SpkFormScreenState extends State<SpkFormScreen> {
     }
   }
 
+  /// Baca PDF SPK dari klien lalu isi form otomatis.
+  Future<void> _uploadPdf() async {
+    const group = XTypeGroup(label: 'Dokumen PDF', extensions: ['pdf']);
+    final file = await openFile(acceptedTypeGroups: [group]);
+
+    if (file == null) return;
+
+    final bytes = await file.readAsBytes();
+
+    if (bytes.isEmpty) {
+      setState(() => _error = 'Berkas tidak bisa dibaca dari perangkat.');
+      return;
+    }
+
+    setState(() {
+      _uploading = true;
+      _error = null;
+    });
+
+    try {
+      final d = await context.read<AuthState>().services.parseSpkPdf(bytes, file.name);
+      if (!mounted) return;
+
+      setState(() {
+        final client = '${d['client_name'] ?? ''}';
+        if (client.isNotEmpty && client != 'null') _clientName.text = client;
+
+        final location = '${d['location'] ?? ''}';
+        if (location.isNotEmpty && location != 'null') _location.text = location;
+
+        final value = double.tryParse('${d['spk_value']}') ?? 0;
+        if (value > 0) _value.text = value.toStringAsFixed(0);
+
+        final tanggal = DateTime.tryParse('${d['date']}');
+        if (tanggal != null) _date = tanggal;
+
+        final mulai = DateTime.tryParse('${d['start_date']}');
+        final selesai = DateTime.tryParse('${d['end_date']}');
+        if (mulai != null) _start = mulai;
+        if (selesai != null) _end = selesai;
+
+        final items = (d['items'] as List? ?? const []);
+        if (_jobName.text.trim().isEmpty && items.isNotEmpty && items.first is Map) {
+          _jobName.text = '${(items.first as Map)['name']}';
+        }
+
+        _uploading = false;
+      });
+
+      final total = (double.tryParse('${d['spk_value']}') ?? 0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'PDF terbaca: ${d['item_count'] ?? 0} item · total '
+            'Rp${NumberFormat('#,##0', 'id_ID').format(total)} · periksa lalu pilih anggotanya.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = '$e';
+          _uploading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -369,6 +439,38 @@ class _SpkFormScreenState extends State<SpkFormScreen> {
                     ),
                     const SizedBox(height: 14),
                   ],
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySoft,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Muat dari PDF SPK',
+                            style: appText(size: 13.5, weight: FontWeight.w700, color: AppColors.primary)),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Nomor, tanggal, nilai, lokasi, dan durasi terisi otomatis. Nama pekerja tetap dipilih manual.',
+                          style: appText(size: 11.5, color: AppColors.primary),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _uploading ? null : _uploadPdf,
+                            icon: _uploading
+                                ? const SizedBox(
+                                    width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.upload_file_outlined, size: 18),
+                            label: Text(_uploading ? 'Membaca PDF…' : 'Pilih berkas PDF'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   _label('NOMOR / TANGGAL SPK'),
                   _dateTile(
                     DateFormat('dd MMMM yyyy', 'id_ID').format(_date),

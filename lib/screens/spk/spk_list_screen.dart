@@ -227,7 +227,7 @@ class _SpkListScreenState extends State<SpkListScreen> {
                       onPressed: () {
                         Navigator.of(context).pop();
                         Navigator.of(this.context).push(
-                          MaterialPageRoute(builder: (_) => PayrollCreateScreen(spkId: spk.id)),
+                          MaterialPageRoute(builder: (_) => const PayrollCreateScreen()),
                         );
                       },
                       child: const Text('Buat slip'),

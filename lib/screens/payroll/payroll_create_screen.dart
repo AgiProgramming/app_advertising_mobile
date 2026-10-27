@@ -2,58 +2,57 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/formatters.dart';
 import '../../core/theme.dart';
-import '../../models/spk.dart';
+import '../../models/user.dart';
 import '../../state/auth_state.dart';
-import '../../widgets/ui.dart';
 
-/// Buat slip gaji dari SPK: hitung dulu (preview), baru simpan.
+/// Buat slip gaji: pilih karyawan + periode, sistem menjumlahkan bagiannya
+/// dari semua SPK pada periode itu lalu menampilkan rincian sebelum disimpan.
 class PayrollCreateScreen extends StatefulWidget {
-  const PayrollCreateScreen({super.key, this.spkId});
+  const PayrollCreateScreen({super.key, this.employeeId});
 
-  final String? spkId;
+  final String? employeeId;
 
   @override
   State<PayrollCreateScreen> createState() => _PayrollCreateScreenState();
 }
 
 class _PayrollCreateScreenState extends State<PayrollCreateScreen> {
-  List<Spk> _spks = const [];
-  String? _spkId;
-  DateTime _period = DateTime.now();
+  final _kasbon = TextEditingController();
 
-  final _percentage = TextEditingController();
-  final _meal = TextEditingController();
-  final _deduction = TextEditingController();
-
-  Map<String, dynamic>? _preview;
+  List<Employee> _employees = const [];
+  String? _employeeId;
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   bool _loading = true;
+  bool _hitung = false;
   bool _saving = false;
   String? _error;
+  Map<String, dynamic>? _preview;
+
+  final _rp = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 2);
+
+  String get _period => DateFormat('yyyy-MM').format(_month);
+  String get _periodLabel => DateFormat('MMMM yyyy', 'id_ID').format(_month);
 
   @override
   void initState() {
     super.initState();
-    _spkId = widget.spkId;
-    _load();
+    _loadEmployees();
   }
 
   @override
   void dispose() {
-    _percentage.dispose();
-    _meal.dispose();
-    _deduction.dispose();
+    _kasbon.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _loadEmployees() async {
     try {
-      final spks = await context.read<AuthState>().services.spks();
+      final list = await context.read<AuthState>().services.employees();
       if (!mounted) return;
       setState(() {
-        _spks = spks;
-        _spkId ??= spks.isNotEmpty ? spks.first.id : null;
+        _employees = list;
+        _employeeId = widget.employeeId ?? (list.isNotEmpty ? list.first.id : null);
         _loading = false;
       });
     } catch (e) {
@@ -65,42 +64,36 @@ class _PayrollCreateScreenState extends State<PayrollCreateScreen> {
     }
   }
 
-  Map<String, dynamic> get _body {
-    final body = <String, dynamic>{
-      'spk_id': _spkId,
-      'period': DateFormat('yyyy-MM').format(_period),
-    };
-
-    if (_percentage.text.trim().isNotEmpty) {
-      body['salary_percentage'] = double.tryParse(_percentage.text.trim());
+  Future<void> _runPreview() async {
+    if (_employeeId == null) {
+      setState(() => _error = 'Pilih karyawan terlebih dahulu.');
+      return;
     }
-    if (_meal.text.trim().isNotEmpty) {
-      body['meal_allowance'] = double.tryParse(_meal.text.trim());
-    }
-    if (_deduction.text.trim().isNotEmpty) {
-      body['cash_advance_deduction'] = double.tryParse(_deduction.text.trim());
-    }
-
-    return body;
-  }
-
-  Future<void> _hitung() async {
-    if (_spkId == null) return;
 
     setState(() {
+      _hitung = true;
       _error = null;
       _preview = null;
     });
 
     try {
-      final data = await context.read<AuthState>().services.payrollPreview(_body);
-      if (mounted) setState(() => _preview = data);
+      final body = <String, dynamic>{
+        'employee_id': _employeeId,
+        'period': _period,
+        if (_kasbon.text.trim().isNotEmpty)
+          'cash_advance_deduction': double.tryParse(_kasbon.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0,
+      };
+      final data = await context.read<AuthState>().services.previewPayroll(body);
+      if (!mounted) return;
+      setState(() => _preview = data);
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _hitung = false);
     }
   }
 
-  Future<void> _simpan() async {
+  Future<void> _save() async {
     if (_preview == null) return;
 
     setState(() {
@@ -109,7 +102,13 @@ class _PayrollCreateScreenState extends State<PayrollCreateScreen> {
     });
 
     try {
-      await context.read<AuthState>().services.createPayroll(_body);
+      final body = <String, dynamic>{
+        'employee_id': _employeeId,
+        'period': _period,
+        if (_kasbon.text.trim().isNotEmpty)
+          'cash_advance_deduction': double.tryParse(_kasbon.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0,
+      };
+      await context.read<AuthState>().services.createPayroll(body);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
@@ -117,6 +116,15 @@ class _PayrollCreateScreenState extends State<PayrollCreateScreen> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  void _shiftMonth(int delta) {
+    setState(() {
+      _month = DateTime(_month.year, _month.month + delta);
+      _preview = null;
+    });
+  }
+
+  double _num(dynamic v) => v == null ? 0 : (double.tryParse('$v') ?? 0);
 
   @override
   Widget build(BuildContext context) {
@@ -131,188 +139,245 @@ class _PayrollCreateScreenState extends State<PayrollCreateScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: AppColors.dangerSoft, borderRadius: BorderRadius.circular(12)),
-                    child: Text(_error!, style: appText(size: 12.5, color: AppColors.danger, height: 1.4)),
+                    child: Text(_error!, style: appText(size: 12.5, color: AppColors.danger)),
                   ),
                   const SizedBox(height: 14),
                 ],
-                Text('SPK', style: labelText(color: AppColors.inkMuted)),
-                const SizedBox(height: 6),
+                _label('KARYAWAN'),
                 DropdownButtonFormField<String>(
-                  initialValue: _spkId,
+                  initialValue: _employeeId,
                   isExpanded: true,
                   items: [
-                    for (final spk in _spks)
+                    for (final e in _employees)
                       DropdownMenuItem(
-                        value: spk.id,
-                        child: Text('${spk.spkNumber} · ${spk.jobName}', style: appText(size: 13), overflow: TextOverflow.ellipsis),
+                        value: e.id,
+                        child: Text('${e.name} · ${e.position}', style: appText(size: 14)),
                       ),
                   ],
-                  onChanged: (value) => setState(() {
-                    _spkId = value;
+                  onChanged: (v) => setState(() {
+                    _employeeId = v;
                     _preview = null;
                   }),
-                  decoration: const InputDecoration(hintText: 'Pilih SPK'),
                 ),
                 const SizedBox(height: 14),
-                Text('PERIODE GAJI', style: labelText(color: AppColors.inkMuted)),
-                const SizedBox(height: 6),
-                GestureDetector(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _period,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2100),
-                      helpText: 'Pilih bulan & tahun',
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        _period = picked;
-                        _preview = null;
-                      });
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(Formats.period(DateFormat('yyyy-MM').format(_period)), style: appText(size: 14))),
-                        const Icon(Icons.calendar_today_outlined, size: 17, color: AppColors.muted),
-                      ],
-                    ),
+                _label('PERIODE GAJI'),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _shiftMonth(-1),
+                        icon: const Icon(Icons.chevron_left),
+                      ),
+                      Expanded(
+                        child: Text(
+                          _periodLabel,
+                          textAlign: TextAlign.center,
+                          style: appText(size: 14, weight: FontWeight.w600),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _shiftMonth(1),
+                        icon: const Icon(Icons.chevron_right),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('KOMISI (%)', style: labelText(color: AppColors.inkMuted)),
-                          const SizedBox(height: 6),
-                          TextField(
-                            controller: _percentage,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(hintText: '22'),
-                            onChanged: (_) => setState(() => _preview = null),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('UANG MAKAN', style: labelText(color: AppColors.inkMuted)),
-                          const SizedBox(height: 6),
-                          TextField(
-                            controller: _meal,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(hintText: '0'),
-                            onChanged: (_) => setState(() => _preview = null),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text('POTONGAN KASBON (OPSIONAL)', style: labelText(color: AppColors.inkMuted)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _deduction,
+                _label('POTONGAN KASBON (OPSIONAL)'),
+                TextFormField(
+                  controller: _kasbon,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(hintText: 'Kosongkan untuk potong otomatis'),
-                  onChanged: (_) => setState(() => _preview = null),
                 ),
-                const SizedBox(height: 16),
-                OutlinedButton(onPressed: _hitung, child: const Text('Hitung')),
+                const SizedBox(height: 6),
+                Text(
+                  'Uang makan Rp100.000 per SPK dipotong otomatis.',
+                  style: appText(size: 11.5, color: AppColors.muted),
+                ),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: _hitung ? null : _runPreview,
+                  icon: _hitung
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.calculate_outlined, size: 18),
+                  label: Text(_hitung ? 'Menghitung…' : 'Hitung'),
+                ),
                 if (_preview != null) ...[
-                  const SizedBox(height: 18),
-                  _PreviewCard(data: _preview!),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _saving ? null : _simpan,
-                    child: _saving
-                        ? const SizedBox(
-                            width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Simpan Slip'),
-                  ),
+                  const SizedBox(height: 22),
+                  _previewCard(_preview!),
                 ],
               ],
             ),
+      bottomNavigationBar: _preview == null
+          ? null
+          : SafeArea(
+              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: const Icon(Icons.save_outlined, size: 18),
+                label: Text(_saving ? 'Menyimpan…' : 'Simpan Slip'),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              ),
+            ),
     );
   }
-}
 
-class _PreviewCard extends StatelessWidget {
-  const _PreviewCard({required this.data});
+  Widget _previewCard(Map<String, dynamic> p) {
+    final items = (p['items'] as List? ?? const []).whereType<Map>().toList();
+    final net = _num(p['net_salary']);
+    final negative = net < 0;
 
-  final Map<String, dynamic> data;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text('RINCIAN SPK', style: labelText(color: AppColors.inkMuted))),
+            Text('${items.length} pekerjaan', style: appText(size: 11.5, color: AppColors.muted)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (items.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.warningSoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Karyawan ini tidak punya SPK pada ${_periodLabel.toLowerCase()}.',
+              style: appText(size: 12.5, color: AppColors.warning),
+            ),
+          )
+        else
+          for (final item in items) _itemTile(item),
+        const SizedBox(height: 18),
+        Text('PERHITUNGAN GAJI', style: labelText(color: AppColors.inkMuted)),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                child: Column(
+                  children: [
+                    _row('Bagian kotor', _rp.format(_num(p['gross_share']))),
+                    _row('PPN ${_pct(p['ppn_rate'])}%', '-${_rp.format(_num(p['ppn_amount']))}', danger: true),
+                    _row('Komisi ${_pct(p['commission_rate'])}%', '-${_rp.format(_num(p['commission_amount']))}', danger: true),
+                    _row('Uang makan (${p['meal_count'] ?? 0} SPK)', '-${_rp.format(_num(p['meal_deduction']))}', danger: true),
+                    if (_num(p['cash_advance_deduction']) > 0)
+                      _row('Potongan kasbon', '-${_rp.format(_num(p['cash_advance_deduction']))}', danger: true),
+                  ],
+                ),
+              ),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                decoration: BoxDecoration(
+                  color: negative ? AppColors.dangerSoft : AppColors.primarySoft,
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(13)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text('GAJI BERSIH', style: labelText(color: AppColors.ink)),
+                    ),
+                    Text(
+                      _rp.format(net),
+                      style: appText(
+                        size: 19,
+                        weight: FontWeight.w800,
+                        color: negative ? AppColors.danger : AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (negative)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Hasil minus — potongan melebihi bagian karyawan pada periode ini.',
+              style: appText(size: 11.5, color: AppColors.danger),
+            ),
+          ),
+      ],
+    );
+  }
 
-  double _value(String key) => double.tryParse('${data[key] ?? 0}') ?? 0;
+  Widget _itemTile(Map item) {
+    final number = '${item['spk_number'] ?? '-'}';
+    final short = number.split('/').last;
 
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text('Perhitungan', style: appText(size: 14, weight: FontWeight.w700))),
-              StatusBadge('${data['salary_percentage'] ?? 0}%', tone: StatusTone.neutral, dot: false),
+              Expanded(child: Text(short, style: appText(size: 13, weight: FontWeight.w700))),
+              Text(
+                _rp.format(_num(item['share_amount'])),
+                style: appText(size: 13, weight: FontWeight.w700, color: AppColors.primary),
+              ),
             ],
           ),
-          const SizedBox(height: 10),
-          _row('Nilai SPK', _value('original_spk_value')),
-          _row('PPN 3%', -_value('ppn_amount')),
-          _row('Nilai bersih', _value('net_spk_value')),
-          const Divider(height: 18),
-          _row('Komisi', _value('gross_salary')),
-          _row('Tunjangan makan', _value('meal_allowance')),
-          _row('Potongan kasbon', -_value('cash_advance_deduction')),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-            decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(10)),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text('GAJI BERSIH',
-                      style: appText(size: 10, weight: FontWeight.w700, color: AppColors.primary, letterSpacing: 0.6)),
-                ),
-                Money(Formats.amount(_value('net_salary')), size: 17, weight: FontWeight.w800),
-              ],
-            ),
+          const SizedBox(height: 4),
+          Text(
+            'Nilai ${_rp.format(_num(item['spk_value']))} · ${item['slot_count']} orang · '
+            '${item['days_worked']}/${item['duration_days']} hari',
+            style: appText(size: 11.5, color: AppColors.muted),
           ),
-          const SizedBox(height: 8),
-          Text('Sisa kasbon setelah potong: ${Formats.rupiah(_value('remaining_cash_advance'))}',
-              style: appText(size: 11, color: AppColors.muted)),
         ],
       ),
     );
   }
 
-  Widget _row(String label, double value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: appText(size: 12.5, color: AppColors.inkMuted))),
-          Text(
-            Formats.amount(value.abs()),
-            style: appText(size: 12.5, weight: FontWeight.w600, color: value < 0 ? AppColors.danger : AppColors.ink),
-          ),
-        ],
-      ),
-    );
+  String _pct(dynamic value) {
+    final v = _num(value);
+    return v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
   }
+
+  Widget _row(String label, String value, {bool danger = false}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: appText(size: 12.5, color: AppColors.inkMuted))),
+            Text(
+              value,
+              style: appText(
+                size: 12.5,
+                weight: FontWeight.w600,
+                color: danger ? AppColors.danger : AppColors.ink,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _label(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(text, style: labelText(color: AppColors.inkMuted)),
+      );
 }
